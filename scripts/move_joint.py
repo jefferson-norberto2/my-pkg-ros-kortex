@@ -56,7 +56,7 @@ class MoveJoint:
     return arm_group.execute(trajectory_message, wait=True)
 
   def reach_joint_angles(self, tolerance):
-    self.arm_group
+    self.arm_group 
     success = True
 
     # Set the goal joint tolerance
