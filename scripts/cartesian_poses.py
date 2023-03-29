@@ -180,7 +180,9 @@ class CartesianPoses:
                 success = self.call_pose("Ponto B", x=-0.28, y=-0.28, z=0.45, theta_x=130.0, theta_y=0.0, theta_z=25.0)
                 success = self.call_pose("Ponto C", x=00.0, y=-0.35, z=0.40, theta_x=130.0, theta_y=0.0, theta_z=0.0) """
             
-                        
+            #success &= self.call_pose("Pose Left", 16.8/100, 30.2/100, 42.3/100, 122.9, 4.6, 73.1)            
+            #success &= self.call_pose("Pose center up", 18.1/100, 4.1/100, 42.3/100, 131.7, -0.9, 89.7)
+            success &= self.call_pose("Pose Rigth", 16.8/100, -36.7/100, 42.3/100, 127.2, -2.2, 98)
             #success = self.call_pose("pose 2", x=0.27, y=-0.27, z=0.37, theta_x=0.0, theta_y=175.0, theta_z=0.0)
             success &= self.my_home_robot(3)
             
