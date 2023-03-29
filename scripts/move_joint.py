@@ -64,20 +64,16 @@ class MoveJoint:
 
     # Set the joint target configuration
     if self.degrees_of_freedom == 7:
-      sucesse &= self.move_to_joints_angles(90,  0, 45, 45, 0, 90, 0)
+      #sucesse &= self.move_to_joints_angles(90,  0, 45, 45, 0, 90, 0)
+      pass
     elif self.degrees_of_freedom == 6:
-      for _ in range(3):
-        success &= self.move_to_joints_angles(96, 66, 50, -5, 131, -115)    # position left
-        success &= self.move_to_joints_angles(13, 65, 50, 70, 128, -97)   #
-        success &= self.move_to_joints_angles(-70, 62, 41, 145, 135, -64) 
-      """ for _ in range(2):
-        success &= self.move_to_joints_angles(80, 60, 7, -13, 134, 24)    # position left
-        success &= self.move_to_joints_angles(35, 35, 60, 60, 115, 105)   #
-        success &= self.move_to_joints_angles(28, 79, 119, 67, 90, 105)   #
-        success &= self.move_to_joints_angles(35, 35, 60, 60, 115, 105)   #
-        success &= self.move_to_joints_angles(-61, 87, 74, 140, 132, 100) #
-        success &= self.move_to_joints_angles(35, 35, 60, 60, 115, 105)   # """
+      success &= self.move_to_joints_angles(96, 66, 50, -5, 135, -108)
 
+      input("Press enter to continue")
+      for _ in range(2):
+        success &= self.move_to_joints_angles(13, 65, 50, 70, 140, -97)   #
+        success &= self.move_to_joints_angles(-70, 62, 41, 145, 140, -64) 
+        success &= self.move_to_joints_angles(96, 66, 50, -5, 140, -115)    # position left
 
     return success
   

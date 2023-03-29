@@ -104,12 +104,16 @@ class CartesianPoses:
 
         # Call the service
         try:
-            self.set_cartesian_reference_frame.call(req.input)
-            rospy.loginfo("Set the cartesian reference frame successfully")
-            return True
+            self.set_cartesian_reference_frame()
         except rospy.ServiceException:
             rospy.logerr("Failed to call SetCartesianReferenceFrame")
             return False
+        else:
+            rospy.loginfo("Set the cartesian reference frame successfully")
+            return True
+
+        # Wait a bit
+        rospy.sleep(0.25)
     
     def get_cartesian_pose(self):
         req = ReadActionRequest()
@@ -158,7 +162,7 @@ class CartesianPoses:
         if self.is_initialized:
             # Make sure to clear the robot's faults else it won't move if it's already in fault
             success &= self.my_clear_faults()
-            
+
             #*******************************************************************************
             # Start the example from the Home position
             success &= self.my_home_robot()
@@ -180,11 +184,11 @@ class CartesianPoses:
                 success = self.call_pose("Ponto B", x=-0.28, y=-0.28, z=0.45, theta_x=130.0, theta_y=0.0, theta_z=25.0)
                 success = self.call_pose("Ponto C", x=00.0, y=-0.35, z=0.40, theta_x=130.0, theta_y=0.0, theta_z=0.0) """
             
-            #success &= self.call_pose("Pose Left", 16.8/100, 30.2/100, 42.3/100, 122.9, 4.6, 73.1)            
-            #success &= self.call_pose("Pose center up", 18.1/100, 4.1/100, 42.3/100, 131.7, -0.9, 89.7)
-            success &= self.call_pose("Pose Rigth", 16.8/100, -36.7/100, 42.3/100, 127.2, -2.2, 98)
+            success &= self.call_pose("Pose Left", 16.8/100, 30.2/100, 42.3/100, 122.9, 4.6, 73.1)            
+            success &= self.call_pose("Pose center up", 18.1/100, 4.1/100, 42.3/100, 131.7, -0.9, 89.7)
+            #success &= self.call_pose("Pose Rigth", 16.8/100, -36.7/100, 42.3/100, 127.2, -2.2, 98)
             #success = self.call_pose("pose 2", x=0.27, y=-0.27, z=0.37, theta_x=0.0, theta_y=175.0, theta_z=0.0)
-            success &= self.my_home_robot(3)
+            #success &= self.my_home_robot(3)
             
             
             if not success:
