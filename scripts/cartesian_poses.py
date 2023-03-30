@@ -2,12 +2,10 @@
 
 import rospy
 import time
+import json
 
-from kortex_driver.srv import Base_ClearFaults, ReadAction, ReadActionRequest, ExecuteAction, ExecuteActionRequest, SetCartesianReferenceFrame
-from kortex_driver.srv import SetCartesianReferenceFrameRequest, OnNotificationActionTopic, OnNotificationActionTopicRequest
-
-from kortex_driver.msg import ActionNotification, ActionEvent, CartesianReferenceFrame, CartesianSpeed, ConstrainedPose, ActionType, Pose
-
+from kortex_driver.srv import *
+from kortex_driver.msg import *
 class CartesianPoses:
     def __init__(self):
         try:
@@ -146,8 +144,12 @@ class CartesianPoses:
             rospy.logerr("Failed to send " + pose_name)
 
     
-    def call_pose(self, pose_name="pose_zero", x=0.374, y=0.081, z=0.450, theta_x=-57.6, theta_y=91.1, theta_z=2.3):
-        cartesian = Pose(x, y, z, theta_x, theta_y, theta_z)
+    def call_pose(self, pose_name="pose_zero", poses=[0, 0, 0.9, 0, 0, 0]):
+        for index in range(3):
+            if poses[index] > 1:
+                poses[index] = poses[index]/100
+        
+        cartesian = Pose(poses[0], poses[1], poses[2], poses[3], poses[4], poses[5])
         self.my_constrained_pose.target_pose = cartesian
         self.execute_cartesian_pose(pose_name)
         return self.wait_for_action_end_or_abort()
@@ -161,7 +163,7 @@ class CartesianPoses:
             
             #*******************************************************************************
             # Start the example from the Home position
-            success &= self.my_home_robot()
+            #success &= self.my_home_robot()
             #*******************************************************************************
 
             self.get_cartesian_pose()
@@ -172,21 +174,15 @@ class CartesianPoses:
             #*******************************************************************************
             # Subscribe to ActionNotification's from the robot to know when a cartesian pose is finished
             success &= self.my_subscribe_to_a_robot_notification()
+            
+            file = open("src/my_package/config/poses.json")
+            poses = json.load(file)
 
-            #success = self.call_pose("Ponto A1", x=0.28, y=-0.28, z=0.45, theta_x=130.0, theta_y=0.0, theta_z=0.0)
-            """ for _ in range(2):
-                success = self.call_pose("Ponto A2", x=0.20, y=-0.25, z=0.45, theta_x=130.0, theta_y=0.0, theta_z=-25.0)
-                success = self.call_pose("Ponto C", x=00.0, y=-0.35, z=0.35, theta_x=130.0, theta_y=0.0, theta_z=0.0)
-                success = self.call_pose("Ponto B", x=-0.28, y=-0.28, z=0.45, theta_x=130.0, theta_y=0.0, theta_z=25.0)
-                success = self.call_pose("Ponto C", x=00.0, y=-0.35, z=0.40, theta_x=130.0, theta_y=0.0, theta_z=0.0) """
-            
-            #success &= self.call_pose("Pose Left", 16.8/100, 30.2/100, 42.3/100, 122.9, 4.6, 73.1)            
-            #success &= self.call_pose("Pose center up", 18.1/100, 4.1/100, 42.3/100, 131.7, -0.9, 89.7)
-            success &= self.call_pose("Pose Rigth", 16.8/100, -36.7/100, 42.3/100, 127.2, -2.2, 98)
-            #success = self.call_pose("pose 2", x=0.27, y=-0.27, z=0.37, theta_x=0.0, theta_y=175.0, theta_z=0.0)
+            for key in poses.keys():
+                success &= self.call_pose(key, poses[key])
+
             success &= self.my_home_robot(3)
-            
-            
+                        
             if not success:
                 rospy.logerr("The example encountered an error.")
 
