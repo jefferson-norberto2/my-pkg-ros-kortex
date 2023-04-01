@@ -79,10 +79,10 @@ class CartesianPoses:
                 time.sleep(0.01)
         return False
     
-    def my_home_robot(self, identifier=2):
+    def my_home_robot(self):
         # The Home Action is used to home the robot. It cannot be deleted and is always ID #2:
         req = ReadActionRequest()
-        req.input.identifier = identifier # Value default home is 2 and vertical is 3
+        req.input.identifier = 2 # Value default home is 2
         self.last_action_notif_type = None
         try:
             res = self.read_action(req)
@@ -102,7 +102,7 @@ class CartesianPoses:
 
         # Call the service
         try:
-            self.set_cartesian_reference_frame.call(req.input)
+            self.set_cartesian_reference_frame.call(input=req.input)
             rospy.loginfo("Set the cartesian reference frame successfully")
             return True
         except rospy.ServiceException:
@@ -111,7 +111,7 @@ class CartesianPoses:
     
     def get_cartesian_pose(self):
         req = ReadActionRequest()
-        rospy.logwarn(str(req.input))
+        return req.input
     
     def my_subscribe_to_a_robot_notification(self):
         # Activate the publishing of the ActionNotification
@@ -156,35 +156,46 @@ class CartesianPoses:
 
             
     def main(self):
-        success = bool()
-        if self.is_initialized:
+        success = self.is_initialized
+        list_error = []
+        if success:
             # Make sure to clear the robot's faults else it won't move if it's already in fault
             success &= self.my_clear_faults()
+            list_error.append(success)
             
             #*******************************************************************************
             # Start the example from the Home position
-            #success &= self.my_home_robot()
+            success &= self.my_home_robot()
+            list_error.append(success)
             #*******************************************************************************
 
             self.get_cartesian_pose()
             #*******************************************************************************
             # Set the reference frame to "Mixed"
             success &= self.my_set_cartesian_reference_frame()
+            list_error.append(success)
 
             #*******************************************************************************
             # Subscribe to ActionNotification's from the robot to know when a cartesian pose is finished
             success &= self.my_subscribe_to_a_robot_notification()
+            list_error.append(success)
             
-            file = open("src/my_package/config/poses.json")
-            poses = json.load(file)
+            poses = {
+                        "Pose 03": [22, 35.5, 45.3, 90.6, -0.1, 89.4],
+                        "Pose 04": [20.4, 29.5, 45, 129.7, 5.6, 78.7],
+                        "Pose 05": [21.5, 6.3, 45, 130.5, 1.2, 86.9]
+                    }
 
             for key in poses.keys():
                 success &= self.call_pose(key, poses[key])
+                list_error.append(success)
 
-            success &= self.my_home_robot(3)
+            success &= self.my_home_robot()
+            list_error.append(success)
                         
             if not success:
                 rospy.logerr("The example encountered an error.")
+                rospy.logerr("Log: " + str(list_error))
 
 if __name__ == "__main__":
     ex = CartesianPoses()

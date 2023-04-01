@@ -2,7 +2,6 @@
 
 import rospy
 import time
-import json
 
 from kortex_driver.srv import *
 from kortex_driver.msg import *
@@ -37,41 +36,23 @@ class MoveJoints:
             rospy.wait_for_service(activate_publishing_of_action_notification_full_name)
             self.activate_publishing_of_action_notification = rospy.ServiceProxy(activate_publishing_of_action_notification_full_name, OnNotificationActionTopic)
 
-            joint1 = JointAngle()
-            joint2 = JointAngle()
-            joint3 = JointAngle()
-            joint4 = JointAngle()
-            joint5 = JointAngle()
-            joint6 = JointAngle()
-
-            joint1.joint_identifier = 1
-            joint2.joint_identifier = 2
-            joint3.joint_identifier = 3
-            joint4.joint_identifier = 4
-            joint5.joint_identifier = 5
-            joint6.joint_identifier = 6
-
-            joint1.value = 200
-            joint2.value = 0
-            joint3.value = 0
-            joint4.value = 0
-            joint5.value = 0
-            joint6.value = 0
+            self.joint1 = JointAngle(joint_identifier=1)
+            self.joint2 = JointAngle(joint_identifier=2)
+            self.joint3 = JointAngle(joint_identifier=3)
+            self.joint4 = JointAngle(joint_identifier=4)
+            self.joint5 = JointAngle(joint_identifier=5)
+            self.joint6 = JointAngle(joint_identifier=6)
 
             my_joints = JointAngles()
-
-            my_joints.joint_angles.append(joint1)
-            my_joints.joint_angles.append(joint2)
-            my_joints.joint_angles.append(joint3)
-            my_joints.joint_angles.append(joint4)
-            my_joints.joint_angles.append(joint5)
-            my_joints.joint_angles.append(joint6)
+            my_joints.joint_angles.append(self.joint1)
+            my_joints.joint_angles.append(self.joint2)
+            my_joints.joint_angles.append(self.joint3)
+            my_joints.joint_angles.append(self.joint4)
+            my_joints.joint_angles.append(self.joint5)
+            my_joints.joint_angles.append(self.joint6)
 
             self.my_constrained_joints = ConstrainedJointAngles()
-
             self.my_constrained_joints.joint_angles = my_joints
-
-
             self.handle_identifier = 1001
 
             self.is_initialized = True
@@ -104,10 +85,9 @@ class MoveJoints:
                 time.sleep(0.01)
         return False
     
-    def my_home_robot(self, identifier=2):
-        # The Home Action is used to home the robot. It cannot be deleted and is always ID #2:
+    def my_home_robot(self):
         req = ReadActionRequest()
-        req.input.identifier = identifier # Value default home is 2 and vertical is 3
+        req.input.identifier = 2 # Value default home is 2 
         self.last_action_notif_type = None
         try:
             res = self.read_action(req)
@@ -121,7 +101,6 @@ class MoveJoints:
             return False
     
     def my_subscribe_to_a_robot_notification(self):
-        # Activate the publishing of the ActionNotification
         req = OnNotificationActionTopicRequest()
         rospy.loginfo("Activating the action notifications...")
         try:
@@ -130,47 +109,50 @@ class MoveJoints:
         except rospy.ServiceException:
             rospy.logerr("Failed to call OnNotificationActionTopic")
             return False
-                    
         rospy.sleep(1.0)
         return True
     
-    def execute_joints_positions(self, pose_name: str):
+    def execute_joints_positions(self):
         req = ExecuteActionRequest()
         req.input.oneof_action_parameters.reach_joint_angles.append(self.my_constrained_joints)
-        req.input.name = pose_name
+        req.input.name = "Move Joints"
         req.input.handle.action_type = ActionType.REACH_JOINT_ANGLES
         req.input.handle.identifier = self.handle_identifier
         self.handle_identifier += 1
 
-        rospy.loginfo("Sending " + pose_name + "...")
+        rospy.loginfo("Sending to joints angles")
         self.last_action_notif_type = None
         try:
             self.execute_action(req)
-            rospy.loginfo("Waiting for "+ pose_name +" to finish...")
+            rospy.loginfo("Waiting to finish...")
         except rospy.ServiceException:
-            rospy.logerr("Failed to send " + pose_name)
+            rospy.logerr("Failed to execute joint angles")
 
     
-    def call_move_joints(self, pose_name="pose_zero"):
-        self.execute_joints_positions(pose_name)
+    def call_move_joints(self, j1: float, j2: float, j3: float, j4: float, j5: float, j6: float) -> bool:
+        self.joint1.value = j1
+        self.joint2.value = j2
+        self.joint3.value = j3
+        self.joint4.value = j4
+        self.joint5.value = j5
+        self.joint6.value = j6        
+        self.execute_joints_positions()
         return self.wait_for_action_end_or_abort()
             
     def main(self):
         success = self.is_initialized
 
         if success:
-            # Make sure to clear the robot's faults else it won't move if it's already in fault
             success &= self.my_clear_faults()
             
-            #*******************************************************************************
-            # Start the example from the Home position
             success &= self.my_home_robot()
 
-            #*******************************************************************************
-            # Subscribe to ActionNotification's from the robot to know when a cartesian pose is finished
             success &= self.my_subscribe_to_a_robot_notification()
             
-            success &= self.call_move_joints("joints")
+            success &= self.call_move_joints(96, 66, 50, -5, 131, -115)    # position left
+            success &= self.call_move_joints(13, 65, 50, 70, 128, -97)   #
+            success &= self.call_move_joints(-70, 62, 41, 145, 135, -64)
+            success &= self.call_move_joints(0, 0, 0, 0, 0, 0)
                         
             if not success:
                 rospy.logerr("The example encountered an error.")
