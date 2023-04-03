@@ -31,10 +31,6 @@ class MoveJoint:
                                                     moveit_msgs.msg.DisplayTrajectory,
                                                     queue_size=20)
 
-      if self.is_gripper_present:
-        gripper_group_name = "gripper"
-        self.gripper_group = moveit_commander.MoveGroupCommander(gripper_group_name, ns=rospy.get_namespace())
-
       rospy.loginfo("Initializing node in namespace " + rospy.get_namespace())
     except Exception as e:
       print (e)
@@ -42,18 +38,6 @@ class MoveJoint:
     else:
       self.is_init_success = True
 
-
-  def reach_named_position(self, target):
-    arm_group = self.arm_group
-    
-    # Going to one of those targets
-    rospy.loginfo("Going to named target " + target)
-    # Set the target
-    arm_group.set_named_target(target)
-    # Plan the trajectory
-    (success_flag, trajectory_message, planning_time, error_code) = arm_group.plan()
-    # Execute the trajectory and block while it's not finished
-    return arm_group.execute(trajectory_message, wait=True)
 
   def reach_joint_angles(self, tolerance):
     self.arm_group 
@@ -64,21 +48,15 @@ class MoveJoint:
 
     # Set the joint target configuration
     if self.degrees_of_freedom == 7:
-      #sucesse &= self.move_to_joints_angles(90,  0, 45, 45, 0, 90, 0)
-      pass
+      sucesse &= self.move_to_joints_angles(90,  0, 45, 45, 0, 90, 0)
     elif self.degrees_of_freedom == 6:
-      success &= self.move_to_joints_angles(96, 66, 50, -5, 135, -108)
-
-      input("Press enter to continue")
-      for _ in range(3):
-        success &= self.move_to_joints_angles(13, 65, 50, 70, 140, -97)   #
-        success &= self.move_to_joints_angles(-70, 62, 41, 145, 140, -64) 
-        success &= self.move_to_joints_angles(96, 66, 50, -5, 140, -115)    # position left
+        success &= self.move_to_joints_angles(52, -10, 81, 0, 53, 2)    # position left
 
     return success
   
   def move_to_joints_angles(self, j1: int, j2: int, j3: int, j4: int, j5: int, j6: int, j7: int=None):
     joint_positions = self.arm_group.get_current_joint_values()
+    
     joint_positions[0] = radians(j1)
     joint_positions[1] = radians(j2)
     joint_positions[2] = radians(j3)
@@ -91,16 +69,6 @@ class MoveJoint:
     self.arm_group.set_joint_value_target(joint_positions)
     return self.arm_group.go(wait=True)
 
-  def reach_gripper_position(self, relative_position):    
-    # We only have to move this joint because all others are mimic!
-    gripper_joint = self.robot.get_joint(self.gripper_joint_name)
-    gripper_max_absolute_pos = gripper_joint.max_bound()
-    gripper_min_absolute_pos = gripper_joint.min_bound()
-    try:
-      val = gripper_joint.move(relative_position * (gripper_max_absolute_pos - gripper_min_absolute_pos) + gripper_min_absolute_pos, True)
-      return val
-    except:
-      return False 
 
 def main():
   example = MoveJoint()
@@ -111,29 +79,11 @@ def main():
   except:
       pass
 
-  if success:
-    """ rospy.loginfo("Reaching Named Target Vertical...")
-    success &= example.reach_named_position("vertical")
-    print (success) """
   
   if success:
     rospy.loginfo("Reaching Joint Angles...")  
     success &= example.reach_joint_angles(tolerance=0.01) #rad
     print (success)
-  
-  if success:
-    rospy.loginfo("Reaching Named Target Vertical...")
-    success &= example.reach_named_position("vertical")
-    print (success)
-
-  """ if example.is_gripper_present and success:
-    rospy.loginfo("Opening the gripper...")
-    success &= example.reach_gripper_position(50)
-    print (success)
-
-    rospy.loginfo("Closing the gripper 100%...")
-    success &= example.reach_gripper_position(0.0)
-    print (success) """
 
   # For testing purposes
   rospy.set_param("/kortex_examples_test_results/moveit_general_python", success)

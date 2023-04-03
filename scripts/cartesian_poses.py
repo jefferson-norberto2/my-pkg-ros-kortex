@@ -2,11 +2,10 @@
 
 import rospy
 import time
+import json
 
-from kortex_driver.srv import Base_ClearFaults, ReadAction, ReadActionRequest, ExecuteAction, ExecuteActionRequest, SetCartesianReferenceFrame
-from kortex_driver.srv import SetCartesianReferenceFrameRequest, OnNotificationActionTopic, OnNotificationActionTopicRequest
-
-from kortex_driver.msg import ActionNotification, ActionEvent, CartesianReferenceFrame, CartesianSpeed, ConstrainedPose, ActionType, Pose
+from kortex_driver.srv import *
+from kortex_driver.msg import *
 
 class CartesianPoses:
     def __init__(self):
@@ -44,7 +43,7 @@ class CartesianPoses:
 
             # Init atributes to cartesian configs
             my_cartesian_speed = CartesianSpeed()
-            my_cartesian_speed.translation = 0.1 # m/s
+            my_cartesian_speed.translation = 0.08 # m/s
             my_cartesian_speed.orientation = 5  # deg/s
             
             self.my_constrained_pose = ConstrainedPose()
@@ -150,8 +149,11 @@ class CartesianPoses:
             rospy.logerr("Failed to send " + pose_name)
 
     
-    def call_pose(self, pose_name="pose_zero", x=0.374, y=0.081, z=0.450, theta_x=-57.6, theta_y=91.1, theta_z=2.3):
-        cartesian = Pose(x, y, z, theta_x, theta_y, theta_z)
+    def call_pose(self, pose_name="pose_zero", poses=[0, 0, 0.9, 0, 0, 0]):
+        for index in range(3):
+                poses[index] = poses[index]/100
+        
+        cartesian = Pose(poses[0], poses[1], poses[2], poses[3], poses[4], poses[5])
         self.my_constrained_pose.target_pose = cartesian
         self.execute_cartesian_pose(pose_name)
         return self.wait_for_action_end_or_abort()
@@ -165,7 +167,7 @@ class CartesianPoses:
 
             #*******************************************************************************
             # Start the example from the Home position
-            success &= self.my_home_robot()
+            #success &= self.my_home_robot()
             #*******************************************************************************
 
             self.get_cartesian_pose()
@@ -176,21 +178,32 @@ class CartesianPoses:
             #*******************************************************************************
             # Subscribe to ActionNotification's from the robot to know when a cartesian pose is finished
             success &= self.my_subscribe_to_a_robot_notification()
+            # juntas: 328.69, 66.75, 95.95, 291.50, 256.66, 74.99
 
-            #success = self.call_pose("Ponto A1", x=0.28, y=-0.28, z=0.45, theta_x=130.0, theta_y=0.0, theta_z=0.0)
-            """ for _ in range(2):
-                success = self.call_pose("Ponto A2", x=0.20, y=-0.25, z=0.45, theta_x=130.0, theta_y=0.0, theta_z=-25.0)
-                success = self.call_pose("Ponto C", x=00.0, y=-0.35, z=0.35, theta_x=130.0, theta_y=0.0, theta_z=0.0)
-                success = self.call_pose("Ponto B", x=-0.28, y=-0.28, z=0.45, theta_x=130.0, theta_y=0.0, theta_z=25.0)
-                success = self.call_pose("Ponto C", x=00.0, y=-0.35, z=0.40, theta_x=130.0, theta_y=0.0, theta_z=0.0) """
+            poses_yp = {
+                        "Pose 01": [4.5, 0.1, 40.7, 129.7, -0.3, 88.1],
+                        "Pose 02": [5.8, 31.8, 41, 128.8, -0.3, 73.9]
+                    }
             
-            success &= self.call_pose("Pose Left", 16.8/100, 30.2/100, 42.3/100, 122.9, 4.6, 73.1)            
-            success &= self.call_pose("Pose center up", 18.1/100, 4.1/100, 42.3/100, 131.7, -0.9, 89.7)
-            #success &= self.call_pose("Pose Rigth", 16.8/100, -36.7/100, 42.3/100, 127.2, -2.2, 98)
-            #success = self.call_pose("pose 2", x=0.27, y=-0.27, z=0.37, theta_x=0.0, theta_y=175.0, theta_z=0.0)
-            #success &= self.my_home_robot(3)
+            poses_yn = {
+                        "Pose 01": [4.5, -0.3, 40.7, 129.9, 1.2, 87.4],
+                        "Pose 02":[4.5, -29.9, 41, 128.3, -2.4, 108.1]
+                    }
+            input("Press enter to continue")
+            self.call_pose("Pose 02 +", poses_yp["Pose 02"])
+            self.call_pose("Pose 01 +", poses_yp["Pose 01"])
+            self.call_pose("Pose 02 -", poses_yn["Pose 02"])
+            self.call_pose("Pose 01 -", poses_yn["Pose 01"])
             
+
+            # self.call_pose("Pose 03", poses["Pose 03"])
+            # input("Press enter to continue...")
             
+            # for _ in range(5):
+            #     for key in poses.keys():
+            #         if key != "Pose 01" and key != "Pose 02":
+            #             success &= self.call_pose(key, poses[key])
+                            
             if not success:
                 rospy.logerr("The example encountered an error.")
 
