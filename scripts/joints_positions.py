@@ -101,6 +101,8 @@ class MoveJoints:
             return False
     
     def my_subscribe_to_a_robot_notification(self):
+        req = ReadActionRequest()
+        rospy.loginfo("Entrou no subscribe notification")
         req = OnNotificationActionTopicRequest()
         rospy.loginfo("Activating the action notifications...")
         try:
@@ -128,14 +130,13 @@ class MoveJoints:
         except rospy.ServiceException:
             rospy.logerr("Failed to execute joint angles")
 
-    
-    def call_move_joints(self, j1: float, j2: float, j3: float, j4: float, j5: float, j6: float) -> bool:
+    def call_move_joints(self, j1: float, j2: float, j3: float, j4: float, j5: float, j6: float, speed=None) -> bool:
         self.joint1.value = j1
         self.joint2.value = j2
         self.joint3.value = j3
         self.joint4.value = j4
         self.joint5.value = j5
-        self.joint6.value = j6        
+        self.joint6.value = j6
         self.execute_joints_positions()
         return self.wait_for_action_end_or_abort()
             
@@ -145,13 +146,19 @@ class MoveJoints:
         if success:
             success &= self.my_clear_faults()
             
-            success &= self.my_home_robot()
+            #success &= self.my_home_robot()
 
             success &= self.my_subscribe_to_a_robot_notification()
+            i = 0
+            for _ in range(5):
+                success &= self.call_move_joints(96, 66, 50, -5, 131, -105)    # position left
+                if i == 0:
+                    input("Press enter to continue")
+                    i += 1
+                success &= self.call_move_joints(13, 65, 50, 70, 128, -97)   #
+                success &= self.call_move_joints(-70, 62, 41, 145, 135, -80)
+                success &= self.call_move_joints(13, 65, 50, 70, 128, -97)
             
-            success &= self.call_move_joints(96, 66, 50, -5, 131, -115)    # position left
-            success &= self.call_move_joints(13, 65, 50, 70, 128, -97)   #
-            success &= self.call_move_joints(-70, 62, 41, 145, 135, -64)
             success &= self.call_move_joints(0, 0, 0, 0, 0, 0)
                         
             if not success:
