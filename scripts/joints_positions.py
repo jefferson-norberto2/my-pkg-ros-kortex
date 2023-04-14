@@ -6,6 +6,8 @@ import time
 from kortex_driver.srv import *
 from kortex_driver.msg import *
 
+import json
+
 class MoveJoints:
     def __init__(self):
         try:
@@ -19,6 +21,8 @@ class MoveJoints:
             self.action_topic_sub = rospy.Subscriber("/" + self.robot_name + "/action_topic", ActionNotification, self.action_topic_callback)
             self.last_action_notif_type = None
 
+            self.velocity = rospy.Publisher("/" + self.robot_name + "/in/joint_velocity", Base_JointSpeeds, queue_size=10)
+
             # Init the services
             clear_faults_full_name = '/' + self.robot_name + '/base/clear_faults'
             rospy   .wait_for_service(clear_faults_full_name)
@@ -31,10 +35,6 @@ class MoveJoints:
             execute_action_full_name = '/' + self.robot_name + '/base/execute_action'
             rospy.wait_for_service(execute_action_full_name)
             self.execute_action = rospy.ServiceProxy(execute_action_full_name, ExecuteAction)
-
-            activate_publishing_of_action_notification_full_name = '/' + self.robot_name + '/base/activate_publishing_of_action_topic'
-            rospy.wait_for_service(activate_publishing_of_action_notification_full_name)
-            self.activate_publishing_of_action_notification = rospy.ServiceProxy(activate_publishing_of_action_notification_full_name, OnNotificationActionTopic)
 
             self.joint1 = JointAngle(joint_identifier=1)
             self.joint2 = JointAngle(joint_identifier=2)
@@ -58,6 +58,19 @@ class MoveJoints:
             self.is_initialized = True
         except:
             self.is_initialized = False
+    
+    def call_velocity(self):
+        velocities = Base_JointSpeeds()
+        #for i in range(6):
+        j = JointSpeed()
+        j.joint_identifier = 1
+        j.duration = 1
+        j.value = 0.1 # rad/s
+        velocities.joint_speeds.append(j)
+        self.velocity.publish(velocities)
+        rospy.logwarn('Publicou a velocidade')
+        return self.wait_for_action_end_or_abort()
+        
 
     def action_topic_callback(self, notif):
         self.last_action_notif_type = notif.action_event
@@ -100,20 +113,6 @@ class MoveJoints:
             rospy.logerr("Failed to call ReadAction or ExecuteAction " + str(error))
             return False
     
-    def my_subscribe_to_a_robot_notification(self):
-        req = ReadActionRequest()
-        rospy.loginfo("Entrou no subscribe notification")
-        req = OnNotificationActionTopicRequest()
-        rospy.loginfo("Activating the action notifications...")
-        try:
-            self.activate_publishing_of_action_notification(req)
-            rospy.loginfo("Successfully activated the Action Notifications!")
-        except rospy.ServiceException:
-            rospy.logerr("Failed to call OnNotificationActionTopic")
-            return False
-        rospy.sleep(1.0)
-        return True
-    
     def execute_joints_positions(self):
         req = ExecuteActionRequest()
         req.input.oneof_action_parameters.reach_joint_angles.append(self.my_constrained_joints)
@@ -130,15 +129,15 @@ class MoveJoints:
         except rospy.ServiceException:
             rospy.logerr("Failed to execute joint angles")
 
-    def call_move_joints(self, j1: float, j2: float, j3: float, j4: float, j5: float, j6: float, speed=None) -> bool:
-        self.joint1.value = j1
-        self.joint2.value = j2
-        self.joint3.value = j3
-        self.joint4.value = j4
-        self.joint5.value = j5
-        self.joint6.value = j6
+    def call_move_joints(self,name: str, joints: list, speed=None) -> bool:
+        self.joint1.value = joints[0]
+        self.joint2.value = joints[1]
+        self.joint3.value = joints[2]
+        self.joint4.value = joints[3]
+        self.joint5.value = joints[4]
+        self.joint6.value = joints[5]
         self.execute_joints_positions()
-        return self.wait_for_action_end_or_abort()
+        #return self.wait_for_action_end_or_abort()
             
     def main(self):
         success = self.is_initialized
@@ -148,18 +147,29 @@ class MoveJoints:
             
             #success &= self.my_home_robot()
 
-            success &= self.my_subscribe_to_a_robot_notification()
-            i = 0
-            for _ in range(5):
-                success &= self.call_move_joints(96, 66, 50, -5, 131, -105)    # position left
-                if i == 0:
-                    input("Press enter to continue")
-                    i += 1
-                success &= self.call_move_joints(13, 65, 50, 70, 128, -97)   #
-                success &= self.call_move_joints(-70, 62, 41, 145, 135, -80)
-                success &= self.call_move_joints(13, 65, 50, 70, 128, -97)
+            self.call_velocity()
             
-            success &= self.call_move_joints(0, 0, 0, 0, 0, 0)
+            i = 0
+
+            file = open('src/my-pkg-ros-kortex/scripts/joints.json')
+
+            positions = json.load(file)
+
+            self.call_move_joints('Zero', [50, 0, 0, 0, 0, 0])
+            self.call_velocity()
+            self.call_move_joints('Zero', [0, 0, 0, 0, 0, 0])
+            # for _ in range(3):
+            #     success &= self.call_move_joints('Superior', positions['upper'])
+            #     if i == 0:
+            #         input("Press enter to continue")
+            #         i += 1
+            #     success &= self.call_move_joints('Esquerda', positions['left'])
+            #     success &= self.call_move_joints('Central', positions['center'])
+            #     success &= self.call_move_joints('Direita', positions['rigth'])
+            #     success &= self.call_move_joints('Baixo', positions['down'])
+            #     success &= self.call_move_joints('Central', positions['upper'])
+            
+            # success &= self.call_move_joints('Zero', [0, 0, 0, 0, 0, 0])
                         
             if not success:
                 rospy.logerr("The example encountered an error.")
