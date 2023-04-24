@@ -34,6 +34,11 @@ class MoveJoints:
             rospy.wait_for_service(execute_action_full_name)
             self.execute_action = rospy.ServiceProxy(execute_action_full_name, ExecuteAction)
 
+            activate_publishing_of_action_notification_full_name = '/' + self.robot_name + '/base/activate_publishing_of_action_topic'
+            rospy.wait_for_service(activate_publishing_of_action_notification_full_name)
+            self.activate_publishing_of_action_notification = rospy.ServiceProxy(activate_publishing_of_action_notification_full_name, OnNotificationActionTopic)
+
+
             self.joint1 = JointAngle(joint_identifier=1)
             self.joint2 = JointAngle(joint_identifier=2)
             self.joint3 = JointAngle(joint_identifier=3)
@@ -84,6 +89,20 @@ class MoveJoints:
                 time.sleep(0.01)
         return False
     
+    def my_subscribe_to_a_robot_notification(self):
+        # Activate the publishing of the ActionNotification
+        req = OnNotificationActionTopicRequest()
+        rospy.loginfo("Activating the action notifications...")
+        try:
+            self.activate_publishing_of_action_notification(req)
+            rospy.loginfo("Successfully activated the Action Notifications!")
+        except rospy.ServiceException:
+            rospy.logerr("Failed to call OnNotificationActionTopic")
+            return False
+                    
+        rospy.sleep(1.0)
+        return True
+    
     def my_home_robot(self):
         req = ReadActionRequest()
         req.input.identifier = 2 # Value default home is 2 
@@ -101,8 +120,9 @@ class MoveJoints:
     
     def execute_joints_positions(self, name:str, speed: float):
         req = ExecuteActionRequest()
-        self.my_constrained_joints.constraint.type = JointTrajectoryConstraintType.JOINT_CONSTRAINT_SPEED
-        self.my_constrained_joints.constraint.value = speed # Velocity
+        if speed:
+            self.my_constrained_joints.constraint.type = JointTrajectoryConstraintType.UNSPECIFIED_JOINT_CONSTRAINT
+            self.my_constrained_joints.constraint.value = speed # Velocity
         req.input.oneof_action_parameters.reach_joint_angles.append(self.my_constrained_joints)
         req.input.name = "Move Joints"
         req.input.handle.action_type = ActionType.REACH_JOINT_ANGLES
@@ -117,7 +137,7 @@ class MoveJoints:
         except rospy.ServiceException:
             rospy.logerr("Failed to execute joint angles")
 
-    def call_move_joints(self,name: str, joints: list, speed=10.0) -> bool:
+    def call_move_joints(self,name: str, joints: list, speed=None) -> bool:
         self.joint1.value = joints[0]
         self.joint2.value = joints[1]
         self.joint3.value = joints[2]
@@ -132,25 +152,32 @@ class MoveJoints:
 
         if success:
             success &= self.my_clear_faults()
-
-            success &= self.my_home_robot()
+            success &= self.my_subscribe_to_a_robot_notification()
+            #success &= self.my_home_robot()
             
             i = 0
+            positions = {
+                            "lower"  :  [357.72, 84.68, 118.5, 95.13, 94.07, 271.35], # ok
+                            "center" :  [353.78, 52.65, 85.31, 95.5, 106.2, 269.12], # ok
+                            "upper"  :  [343.64, 33.03, 48.11, 101.47, 125.05, 267.14], # ok
+                            "left"   :  [296.23, 59.73, 47.19, 145.53, 142.62, 276.72], # ok
+                            "rigth"  :  [71.06, 62.51, 60.53, 38.22, 138.9, 280.37], # ok
+                            "zero"   :  [0, 0, 0, 0, 0, 0]
+                        }
 
-            file = open('src/my_package/scripts/joints.json')
-
-            positions = json.load(file)
-
-            for _ in range(1):
-                success &= self.call_move_joints('Superior', positions['upper'])
+            for _ in range(2):
+                success &= self.call_move_joints('Superior', positions['center'])
                 if i == 0:
                     input("Press enter to continue")
                     i += 1
-                success &= self.call_move_joints('Esquerda', positions['left'])
-                success &= self.call_move_joints('Central', positions['center'])
-                success &= self.call_move_joints('Direita', positions['rigth'])
-                success &= self.call_move_joints('Baixo', positions['down'])
-                success &= self.call_move_joints('Central', positions['upper'])
+                success &= self.call_move_joints('Baixo', positions['lower'])
+                success &= self.call_move_joints('Superior', positions['center'])
+                success &= self.call_move_joints('Centro', positions['upper'])
+                success &= self.call_move_joints('Esquerda',  positions['left'])
+                success &= self.call_move_joints('Direita',    positions['rigth'])
+                success &= self.call_move_joints('Esquerda',  positions['left'])
+                success &= self.call_move_joints('Centro', positions['upper'])
+
             
             success &= self.call_move_joints('Zero', positions['zero'])
                         
