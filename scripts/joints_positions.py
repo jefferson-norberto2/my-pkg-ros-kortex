@@ -6,8 +6,6 @@ import time
 from kortex_driver.srv import *
 from kortex_driver.msg import *
 
-import json
-
 class MoveJoints:
     def __init__(self):
         try:
@@ -20,6 +18,8 @@ class MoveJoints:
 
             self.action_topic_sub = rospy.Subscriber("/" + self.robot_name + "/action_topic", ActionNotification, self.action_topic_callback)
             self.last_action_notif_type = None
+
+            self.base_feedback_topic_sub = rospy.Subscriber("/" + self.robot_name + "/base_feedback", BaseCyclic_Feedback, self.base_feedback)
 
             # Init the services
             clear_faults_full_name = '/' + self.robot_name + '/base/clear_faults'
@@ -58,10 +58,24 @@ class MoveJoints:
             self.my_constrained_joints.joint_angles = my_joints
             self.handle_identifier = 1001
 
+            self.x = None
+            self.y = None
+            self.z = None
+            self.roll = None
+            self.pitch = None
+            self.yaw = None
+
             self.is_initialized = True
         except:
             self.is_initialized = False
-        
+    
+    def base_feedback(self, base: BaseCyclic_Feedback):
+        self.x = base.base.tool_pose_x
+        self.y = base.base.tool_pose_y
+        self.z = base.base.tool_pose_z
+        self.roll = base.base.tool_pose_theta_x
+        self.pitch = base.base.tool_pose_theta_y
+        self.yaw = base.base.tool_pose_theta_z
 
     def action_topic_callback(self, notif):
         self.last_action_notif_type = notif.action_event
@@ -121,7 +135,7 @@ class MoveJoints:
     def execute_joints_positions(self, name:str, speed: float):
         req = ExecuteActionRequest()
         if speed:
-            self.my_constrained_joints.constraint.type = JointTrajectoryConstraintType.UNSPECIFIED_JOINT_CONSTRAINT
+            self.my_constrained_joints.constraint.type = JointTrajectoryConstraintType.JOINT_CONSTRAINT_DURATION
             self.my_constrained_joints.constraint.value = speed # Velocity
         req.input.oneof_action_parameters.reach_joint_angles.append(self.my_constrained_joints)
         req.input.name = "Move Joints"
@@ -146,6 +160,16 @@ class MoveJoints:
         self.joint6.value = joints[5]
         self.execute_joints_positions(name, speed)
         return self.wait_for_action_end_or_abort()
+    
+    def show_position(self):
+        print("Current tool position:")
+        print("X:", self.x)
+        print("Y:", self.y)
+        print("Z:", self.z)
+        print("Roll:", self.roll)
+        print("Picth:", self.pitch)
+        print("Yaw:", self.yaw)
+
             
     def main(self):
         success = self.is_initialized
@@ -155,30 +179,33 @@ class MoveJoints:
             success &= self.my_subscribe_to_a_robot_notification()
             #success &= self.my_home_robot()
             
-            i = 0
             positions = {
-                            "lower"  :  [357.72, 84.68, 118.5, 95.13, 94.07, 271.35], # ok
-                            "center" :  [353.78, 52.65, 85.31, 95.5, 106.2, 269.12], # ok
-                            "upper"  :  [343.64, 33.03, 48.11, 101.47, 125.05, 267.14], # ok
-                            "left"   :  [296.23, 59.73, 47.19, 145.53, 142.62, 276.72], # ok
-                            "rigth"  :  [71.06, 62.51, 60.53, 38.22, 138.9, 280.37], # ok
-                            "zero"   :  [0, 0, 0, 0, 0, 0]
+                            'Rigth Up': [286.13, 322.76, 2.32, 323.08, 240.63, 41.54],
+                            'Rigth Down': [280.71, 325.3, 61.25, 326.9, 268.16, 354.2],
+                            'Center Right': [312.61, 32.45, 92.1, 300.49, 280.94, 49.98],
+                            'Center Left': [283.57, 64.76, 85.22, 328.66, 240.08, 63.41],
+                            'Left Up': [282.91, 62.11, 10.78, 17.31, 225.61, 148.95],
+                            'Left Down': [280.77, 88.72, 44.68, 7.05, 221.28, 145.26],
+                            "zero"    :  [0, 0, 0, 0, 0, 0]
                         }
 
-            for _ in range(2):
-                success &= self.call_move_joints('Superior', positions['center'])
-                if i == 0:
-                    input("Press enter to continue")
-                    i += 1
-                success &= self.call_move_joints('Baixo', positions['lower'])
-                success &= self.call_move_joints('Superior', positions['center'])
-                success &= self.call_move_joints('Centro', positions['upper'])
-                success &= self.call_move_joints('Esquerda',  positions['left'])
-                success &= self.call_move_joints('Direita',    positions['rigth'])
-                success &= self.call_move_joints('Esquerda',  positions['left'])
-                success &= self.call_move_joints('Centro', positions['upper'])
+            speed = 2
 
-            
+            for i in range(5):
+                if i == 0:
+                    success &= self.call_move_joints('Direita'  , positions['Rigth Up' ], speed)
+                    self.show_position()
+                    input("Press enter to continue")
+                else:
+                    success &= self.call_move_joints('Direita'  , positions['Rigth Up' ], speed+4)
+                    break
+                
+                success &= self.call_move_joints('Superior' , positions['Rigth Down'], speed)
+                success &= self.call_move_joints('Esquerda' , positions['Center Right'], speed)
+                success &= self.call_move_joints('Superior' , positions['Center Left'], speed)
+                success &= self.call_move_joints('Centro'   , positions['Left Up'], speed)
+                success &= self.call_move_joints('baixo'    , positions['Left Down'], speed)
+
             success &= self.call_move_joints('Zero', positions['zero'])
                         
             if not success:
