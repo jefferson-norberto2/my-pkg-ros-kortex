@@ -58,14 +58,9 @@ class MoveJoints:
             self.my_constrained_joints = ConstrainedJointAngles(joint_angles=my_joints)
             self.handle_identifier = 1001
 
-            self.x = None
-            self.y = None
-            self.z = None
-            self.roll = None
-            self.pitch = None
-            self.yaw = None
-
             self.is_initialized = True
+            self.my_clear_faults()
+            self.my_subscribe_to_a_robot_notification()
         except:
             self.is_initialized = False
     
@@ -155,62 +150,39 @@ class MoveJoints:
         try:
             self.execute_action(req)
             rospy.loginfo("Waiting to finish...")
+            return self.wait_for_action_end_or_abort()
         except rospy.ServiceException:
             rospy.logerr("Failed to execute joint angles")
-        
-        return self.wait_for_action_end_or_abort()
-    
-    def show_position(self):
-        print("Current tool position:")
-        print("X:", self.x)
-        print("Y:", self.y)
-        print("Z:", self.z)
-        print("Roll:", self.roll)
-        print("Picth:", self.pitch)
-        print("Yaw:", self.yaw)
-
-            
-    def main(self):
-        success = self.is_initialized
-
-        if success:
-            success &= self.my_clear_faults()
-            success &= self.my_subscribe_to_a_robot_notification()
-            #success &= self.my_home_robot()
-            
-            positions = {
-                            'Rigth Up': [286.13, 322.76, 2.32, 323.08, 240.63, 41.54],
-                            'Rigth Down': [280.71, 325.3, 61.25, 326.9, 268.16, 354.2],
-                            'Center Right': [312.61, 32.45, 92.1, 300.49, 280.94, 49.98],
-                            'Center Left': [283.57, 64.76, 85.22, 328.66, 240.08, 63.41],
-                            'Left Up': [282.91, 62.11, 10.78, 17.31, 225.61, 148.95],
-                            'Left Down': [280.77, 88.72, 44.68, 7.05, 221.28, 145.26],
-                            "zero"    :  [0, 0, 0, 0, 0, 0]
-                        }
-
-            speed = 2
-
-            for i in range(5):
-                if i == 0:
-                    success &= self.call_move_joints('Direita'  , positions['Rigth Up' ], speed)
-                    self.show_position()
-                    input("Press enter to continue")
-                else:
-                    success &= self.call_move_joints('Direita'  , positions['Rigth Up' ], speed+4)
-                    break
-                
-                success &= self.execute_joints_positions('Superior' , positions['Rigth Down'], speed)
-                success &= self.execute_joints_positions('Esquerda' , positions['Center Right'], speed)
-                success &= self.execute_joints_positions('Superior' , positions['Center Left'], speed)
-                success &= self.execute_joints_positions('Centro'   , positions['Left Up'], speed)
-                success &= self.execute_joints_positions('baixo'    , positions['Left Down'], speed)
-
-            success &= self.execute_joints_positions('Zero', positions['zero'])
-                        
-            if not success:
-                rospy.logerr("The example encountered an error.")
-
+            return False
+                  
 if __name__ == "__main__":
-    ex = MoveJoints()
-    ex.main()
+    positions = {
+                    'Rigth Up': [286.13, 322.76, 2.32, 323.08, 240.63, 41.54],
+                    'Rigth Down': [280.71, 325.3, 61.25, 326.9, 268.16, 354.2],
+                    'Center Right': [312.61, 32.45, 92.1, 300.49, 280.94, 49.98],
+                    'Center Left': [283.57, 64.76, 85.22, 328.66, 240.08, 63.41],
+                    'Left Up': [282.91, 62.11, 10.78, 17.31, 225.61, 148.95],
+                    'Left Down': [280.77, 88.72, 44.68, 7.05, 221.28, 145.26],
+                    "zero"    :  [0, 0, 0, 0, 0, 0]
+                }
+    
+    move_joints = MoveJoints()
+    success = []
+    speed = 2
+    for i in range(1):
+        if i == 0:
+            success.append(move_joints.execute_joints_positions('Direita'  , positions['Rigth Up' ], speed))
+            input("Press enter to continue")
+        else:
+            success.append(move_joints.execute_joints_positions('Direita'  , positions['Rigth Up' ], speed+4))
+
+        success.append(move_joints.execute_joints_positions('Superior' , positions['Rigth Down'], speed))
+        success.append(move_joints.execute_joints_positions('Esquerda' , positions['Center Right'], speed))
+        success.append(move_joints.execute_joints_positions('Superior' , positions['Center Left'], speed))
+        success.append(move_joints.execute_joints_positions('Centro'   , positions['Left Up'], speed))
+        success.append(move_joints.execute_joints_positions('baixo'    , positions['Left Down'], speed))
+
+    success.append(move_joints.execute_joints_positions('Zero', positions['zero']))
+
+    rospy.loginfo("Success of moviments joints: " + str(success))
 
