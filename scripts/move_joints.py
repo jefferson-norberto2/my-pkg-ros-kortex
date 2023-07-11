@@ -38,6 +38,7 @@ class MoveJoints:
             rospy.wait_for_service(activate_publishing_of_action_notification_full_name)
             self.activate_publishing_of_action_notification = rospy.ServiceProxy(activate_publishing_of_action_notification_full_name, OnNotificationActionTopic)
 
+            # Init atributes to joints configs
             self.joint1 = JointAngle(joint_identifier=1)
             self.joint2 = JointAngle(joint_identifier=2)
             self.joint3 = JointAngle(joint_identifier=3)
@@ -56,6 +57,7 @@ class MoveJoints:
             self.my_constrained_joints = ConstrainedJointAngles(joint_angles=my_joints)
             self.handle_identifier = 1001
 
+            # Finish the initialization
             self.is_initialized = True
             self.my_clear_faults()
             self.my_subscribe_to_a_robot_notification()
@@ -63,9 +65,16 @@ class MoveJoints:
             self.is_initialized = False
 
     def action_topic_callback(self, notif):
+        """
+        Callback for the ActionNotification topic subscription.
+        Used to track the end of the execution of the action.
+        """
         self.last_action_notif_type = notif.action_event
 
     def my_clear_faults(self):
+        """
+        Default function to clear the faults of the robot
+        """
         try:
             self.clear_faults()
             rospy.loginfo("Cleared the faults successfully")
@@ -76,6 +85,12 @@ class MoveJoints:
             return False
         
     def wait_for_action_end_or_abort(self):
+        """
+        This function waits for the action to finish or abort.
+        She uses the last_action_notif_type to check if the action finished or aborted.
+        She returns True if the action finished and False if the action aborted.
+        She also sets the all_notifs_succeeded to False if the action aborted.
+        """
         while not rospy.is_shutdown():
             if (self.last_action_notif_type == ActionEvent.ACTION_END):
                 rospy.loginfo("Received ACTION_END notification")
@@ -89,7 +104,10 @@ class MoveJoints:
         return False
     
     def my_subscribe_to_a_robot_notification(self):
-        # Activate the publishing of the ActionNotification
+        """
+        Activate the publishing of the ActionNotification
+        without this the action_topic_callback will not be called
+        """
         req = OnNotificationActionTopicRequest()
         rospy.loginfo("Activating the action notifications...")
         try:
@@ -103,6 +121,9 @@ class MoveJoints:
         return True
     
     def my_home_robot(self):
+        """
+        This function sends the robot to home position.
+        """
         req = ReadActionRequest()
         req.input.identifier = 2 # Value default home is 2 
         self.last_action_notif_type = None
@@ -118,6 +139,13 @@ class MoveJoints:
             return False
     
     def execute_joints_positions(self, name:str, joints:list, speed:float) -> bool:
+        """
+        This function sends the robot to a position of joints.
+        She receives the name of the position, the list of joints and the speed.
+        She returns True if the action finished and False if the action aborted.
+        Is important to note that the speed is optional and work about the velocity 
+        of the robot complete the movement in the time of speed.
+        """
         self.joint1.value = joints[0]
         self.joint2.value = joints[1]
         self.joint3.value = joints[2]
