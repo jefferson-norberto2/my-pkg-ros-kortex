@@ -12,18 +12,20 @@ class MoveJoints:
             rospy.init_node("move_joints")
 
             self.all_notifs_succeeded = True
+            self.last_action_notif_type = None
 
             self.robot_name = "my_gen3_lite"
             rospy.loginfo("Using robot_name " + self.robot_name)
 
-            self.action_topic_sub = rospy.Subscriber("/" + self.robot_name + "/action_topic", ActionNotification, self.action_topic_callback)
-            self.last_action_notif_type = None
+            self.action_topic_sub = rospy.Subscriber("/" + self.robot_name + "/action_topic", 
+                                                     ActionNotification, self.action_topic_callback)
 
-            self.base_feedback_topic_sub = rospy.Subscriber("/" + self.robot_name + "/base_feedback", BaseCyclic_Feedback, self.base_feedback)
+            self.base_feedback_topic_sub = rospy.Subscriber("/" + self.robot_name + "/base_feedback", 
+                                                            BaseCyclic_Feedback, self.base_feedback)
 
             # Init the services
             clear_faults_full_name = '/' + self.robot_name + '/base/clear_faults'
-            rospy   .wait_for_service(clear_faults_full_name)
+            rospy.wait_for_service(clear_faults_full_name)
             self.clear_faults = rospy.ServiceProxy(clear_faults_full_name, Base_ClearFaults)
 
             read_action_full_name = '/' + self.robot_name + '/base/read_action'
@@ -37,7 +39,6 @@ class MoveJoints:
             activate_publishing_of_action_notification_full_name = '/' + self.robot_name + '/base/activate_publishing_of_action_topic'
             rospy.wait_for_service(activate_publishing_of_action_notification_full_name)
             self.activate_publishing_of_action_notification = rospy.ServiceProxy(activate_publishing_of_action_notification_full_name, OnNotificationActionTopic)
-
 
             self.joint1 = JointAngle(joint_identifier=1)
             self.joint2 = JointAngle(joint_identifier=2)
@@ -54,8 +55,7 @@ class MoveJoints:
             my_joints.joint_angles.append(self.joint5)
             my_joints.joint_angles.append(self.joint6)
 
-            self.my_constrained_joints = ConstrainedJointAngles()
-            self.my_constrained_joints.joint_angles = my_joints
+            self.my_constrained_joints = ConstrainedJointAngles(joint_angles=my_joints)
             self.handle_identifier = 1001
 
             self.x = None
@@ -132,7 +132,14 @@ class MoveJoints:
             rospy.logerr("Failed to call ReadAction or ExecuteAction " + str(error))
             return False
     
-    def execute_joints_positions(self, name:str, speed: float):
+    def execute_joints_positions(self, name:str, joints:list, speed: float) -> bool:
+        self.joint1.value = joints[0]
+        self.joint2.value = joints[1]
+        self.joint3.value = joints[2]
+        self.joint4.value = joints[3]
+        self.joint5.value = joints[4]
+        self.joint6.value = joints[5]
+        
         req = ExecuteActionRequest()
         if speed:
             self.my_constrained_joints.constraint.type = JointTrajectoryConstraintType.JOINT_CONSTRAINT_DURATION
@@ -150,15 +157,7 @@ class MoveJoints:
             rospy.loginfo("Waiting to finish...")
         except rospy.ServiceException:
             rospy.logerr("Failed to execute joint angles")
-
-    def call_move_joints(self,name: str, joints: list, speed=None) -> bool:
-        self.joint1.value = joints[0]
-        self.joint2.value = joints[1]
-        self.joint3.value = joints[2]
-        self.joint4.value = joints[3]
-        self.joint5.value = joints[4]
-        self.joint6.value = joints[5]
-        self.execute_joints_positions(name, speed)
+        
         return self.wait_for_action_end_or_abort()
     
     def show_position(self):
@@ -200,13 +199,13 @@ class MoveJoints:
                     success &= self.call_move_joints('Direita'  , positions['Rigth Up' ], speed+4)
                     break
                 
-                success &= self.call_move_joints('Superior' , positions['Rigth Down'], speed)
-                success &= self.call_move_joints('Esquerda' , positions['Center Right'], speed)
-                success &= self.call_move_joints('Superior' , positions['Center Left'], speed)
-                success &= self.call_move_joints('Centro'   , positions['Left Up'], speed)
-                success &= self.call_move_joints('baixo'    , positions['Left Down'], speed)
+                success &= self.execute_joints_positions('Superior' , positions['Rigth Down'], speed)
+                success &= self.execute_joints_positions('Esquerda' , positions['Center Right'], speed)
+                success &= self.execute_joints_positions('Superior' , positions['Center Left'], speed)
+                success &= self.execute_joints_positions('Centro'   , positions['Left Up'], speed)
+                success &= self.execute_joints_positions('baixo'    , positions['Left Down'], speed)
 
-            success &= self.call_move_joints('Zero', positions['zero'])
+            success &= self.execute_joints_positions('Zero', positions['zero'])
                         
             if not success:
                 rospy.logerr("The example encountered an error.")
