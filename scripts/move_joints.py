@@ -17,11 +17,9 @@ class MoveJoints:
             self.robot_name = "my_gen3_lite"
             rospy.loginfo("Using robot_name " + self.robot_name)
 
+            # Init the subscribers
             self.action_topic_sub = rospy.Subscriber("/" + self.robot_name + "/action_topic", 
                                                      ActionNotification, self.action_topic_callback)
-
-            self.base_feedback_topic_sub = rospy.Subscriber("/" + self.robot_name + "/base_feedback", 
-                                                            BaseCyclic_Feedback, self.base_feedback)
 
             # Init the services
             clear_faults_full_name = '/' + self.robot_name + '/base/clear_faults'
@@ -63,14 +61,6 @@ class MoveJoints:
             self.my_subscribe_to_a_robot_notification()
         except:
             self.is_initialized = False
-    
-    def base_feedback(self, base: BaseCyclic_Feedback):
-        self.x = base.base.tool_pose_x
-        self.y = base.base.tool_pose_y
-        self.z = base.base.tool_pose_z
-        self.roll = base.base.tool_pose_theta_x
-        self.pitch = base.base.tool_pose_theta_y
-        self.yaw = base.base.tool_pose_theta_z
 
     def action_topic_callback(self, notif):
         self.last_action_notif_type = notif.action_event
@@ -127,18 +117,20 @@ class MoveJoints:
             rospy.logerr("Failed to call ReadAction or ExecuteAction " + str(error))
             return False
     
-    def execute_joints_positions(self, name:str, joints:list, speed: float) -> bool:
+    def execute_joints_positions(self, name:str, joints:list, speed:float) -> bool:
         self.joint1.value = joints[0]
         self.joint2.value = joints[1]
         self.joint3.value = joints[2]
         self.joint4.value = joints[3]
         self.joint5.value = joints[4]
         self.joint6.value = joints[5]
-        
+
         req = ExecuteActionRequest()
+
         if speed:
             self.my_constrained_joints.constraint.type = JointTrajectoryConstraintType.JOINT_CONSTRAINT_DURATION
             self.my_constrained_joints.constraint.value = speed # Velocity
+        
         req.input.oneof_action_parameters.reach_joint_angles.append(self.my_constrained_joints)
         req.input.name = "Move Joints"
         req.input.handle.action_type = ActionType.REACH_JOINT_ANGLES
